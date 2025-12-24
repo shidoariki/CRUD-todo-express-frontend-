@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CRUD Todo App</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .item {
+        padding: 15px;
+        border: 1px solid #ddd;
+        margin: 10px 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 8px;
+      }
+      .completed {
+        text-decoration: line-through;
+        opacity: 0.6;
+        background: #f0f8ff;
+      }
+      button {
+        padding: 8px 15px;
+        margin-left: 5px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        opacity: 0.8;
+      }
+      .delete-btn {
+        background: #dc3545;
+        color: white;
+      }
+      .add-btn {
+        background: #28a745;
+        color: white;
+      }
+      input {
+        padding: 10px;
+        margin-right: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        width: 300px;
+      }
+      .error {
+        color: #dc3545;
+        background: #f8d7da;
+        padding: 10px;
+        border-radius: 4px;
+        margin: 10px 0;
+      }
+      .loading {
+        color: #007bff;
+        font-style: italic;
+      }
+      .status {
+        margin: 20px 0;
+        padding: 10px;
+        background: #d4edda;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🚀 My CRUD Todo App</h1>
+    <p>Full-stack app with backend persistence!</p>
+
+    <div style="margin-bottom: 20px">
+      <input
+        type="text"
+        id="itemInput"
+        placeholder="Enter new task..."
+        maxlength="100"
+      />
+      <button class="add-btn" onclick="addItem()">Add Item</button>
+    </div>
+
+    <div id="itemsList">Loading...</div>
+
+    <div id="status"></div>
+
+    <script>
+      async function loadItems() {
+        const itemsList = document.getElementById("itemsList");
+        const status = document.getElementById("status");
+
+        try {
+          status.innerHTML = '<div class="status">🔄 Loading items...</div>';
+          itemsList.innerHTML =
+            '<div class="loading">Fetching from API...</div>';
+
+          const response = await fetch("/api/items");
+          const items = await response.json();
+
+          itemsList.innerHTML = "";
+
+          if (items.length === 0) {
+            itemsList.innerHTML = "<p>No items yet. Add one above! 🎯</p>";
+            status.innerHTML =
+              '<div class="status">📭 Empty list - ready for your first item!</div>';
+            return;
+          }
+
+          items.forEach((item) => {
+            const itemDiv = document.createElement("div");
+            itemDiv.className = `item ${item.completed ? "completed" : ""}`;
+            itemDiv.innerHTML = `
+            <div style="flex: 1;">
+              <strong>${item.name}</strong>
+              <small style="color: #666;"> ID: ${item.id}</small>
+            </div>
+            <div>
+              <input type="checkbox" ${
+                item.completed ? "checked" : ""
+              } onchange="toggleComplete(${item.id}, this.checked)">
+              <button class="delete-btn" onclick="deleteItem(${
+                item.id
+              })">🗑️ Delete</button>
+            </div>
+          `;
+            itemsList.appendChild(itemDiv);
+          });
+
+          status.innerHTML = `<div class="status">✅ Loaded ${items.length} items from database</div>`;
+        } catch (error) {
+          itemsList.innerHTML =
+            '<div class="error">❌ Error: Is backend running? Check console (F12)</div>';
+          status.innerHTML =
+            '<div class="error">Backend connection failed</div>';
+          console.error("API error:", error);
+        }
+      }
+
+      // Add new item
+      async function addItem() {
+        const input = document.getElementById("itemInput");
+        const name = input.value.trim();
+
+        if (!name) {
+          alert("Please enter a task name!");
+          return;
+        }
+
+        try {
+          const response = await fetch("/api/items", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name }),
+          });
+
+          if (response.ok) {
+            input.value = "";
+            loadItems(); // Refresh list
+          } else {
+            const error = await response.json();
+            alert("Error: " + error.error);
+          }
+        } catch (error) {
+          alert("Failed to add item");
+        }
+      }
+
+      // Toggle complete status
+      async function toggleComplete(id, completed) {
+        try {
+          const response = await fetch(`/api/items/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ completed }),
+          });
+          loadItems(); // Refresh list
+        } catch (error) {
+          console.error("Update failed:", error);
+        }
+      }
+
+      // Delete item
+      async function deleteItem(id) {
+        if (!confirm("Delete this item?")) return;
+
+        try {
+          const response = await fetch(`/api/items/${id}`, {
+            method: "DELETE",
+          });
+          loadItems(); // Refresh list
+        } catch (error) {
+          console.error("Delete failed:", error);
+        }
+      }
+
+      // Enter key support
+      document
+        .getElementById("itemInput")
+        .addEventListener("keypress", function (e) {
+          if (e.key === "Enter") addItem();
+        });
+
+      loadItems();
+      console.log("🚀 Full-stack todo app ready!");
+    </script>
+  </body>
+</html>
